@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block title %}Checkout — ShopKart{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1>Checkout</h1>
+</div>
+
+<div class="checkout-layout">
+  <div class="checkout-form-wrap">
+    <div class="checkout-card">
+      <h3><i class="fa fa-map-marker-alt"></i> Delivery Address</h3>
+      <form method="post">
+        <div class="form-group">
+          <label>Full Address</label>
+          <textarea name="address" class="form-input" rows="3" required
+                    placeholder="House no, Street, City, State, Pincode">{{ me.address or '' }}</textarea>
+        </div>
+        <button type="submit" class="btn btn-primary btn-full btn-lg">
+          <i class="fa fa-check-circle"></i> Place Order
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <div class="checkout-summary">
+    <div class="checkout-card">
+      <h3><i class="fa fa-shopping-bag"></i> Order Items</h3>
+      {% for item in cart.items %}
+      <div class="checkout-item">
+        <span class="co-name">{{ item.product_name }} × {{ item.quantity }}</span>
+        <span class="co-price">₹{{ "%.0f"|format(item.subtotal) }}</span>
+      </div>
+      {% endfor %}
+      <div class="summary-divider"></div>
+      <div class="checkout-total">
+        <span>Total</span>
+        <span class="total-amt">₹{{ "%.0f"|format(cart.total) }}</span>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

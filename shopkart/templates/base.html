@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>{% block title %}ShopKart{% endblock %}</title>
+  <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}"/>
+</head>
+<body>
+
+<!-- NAV -->
+<nav class="navbar">
+  <a href="{{ url_for('index') }}" class="nav-brand">
+    <span class="brand-icon">🛒</span> ShopKart
+  </a>
+
+  <form class="nav-search" action="{{ url_for('index') }}" method="get">
+    <input type="text" name="search" placeholder="Search products…" value="{{ request.args.get('search', '') }}"/>
+    <button type="submit"><i class="fa fa-search"></i></button>
+  </form>
+
+  <div class="nav-links">
+    {% if session.get('token') %}
+      <a href="{{ url_for('cart') }}" class="nav-cart">
+        <i class="fa fa-shopping-cart"></i>
+        {% if cart_count is defined and cart_count > 0 %}
+          <span class="cart-badge">{{ cart_count }}</span>
+        {% endif %}
+      </a>
+      <div class="nav-dropdown">
+        <button class="nav-user-btn">
+          <i class="fa fa-user-circle"></i> {{ session.get('user_name', 'Account') }}
+          <i class="fa fa-chevron-down" style="font-size:11px;margin-left:4px;"></i>
+        </button>
+        <div class="dropdown-menu">
+          <a href="{{ url_for('profile') }}"><i class="fa fa-user"></i> Profile</a>
+          <a href="{{ url_for('orders') }}"><i class="fa fa-box"></i> My Orders</a>
+          {% if session.get('user_role') == 'admin' %}
+            <a href="{{ url_for('admin_dashboard') }}"><i class="fa fa-cog"></i> Admin Panel</a>
+          {% endif %}
+          <hr/>
+          <a href="{{ url_for('logout') }}" class="logout-link"><i class="fa fa-sign-out-alt"></i> Logout</a>
+        </div>
+      </div>
+    {% else %}
+      <a href="{{ url_for('login') }}" class="btn btn-ghost">Login</a>
+      <a href="{{ url_for('register') }}" class="btn btn-primary">Sign Up</a>
+    {% endif %}
+  </div>
+</nav>
+
+<!-- FLASH MESSAGES -->
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+    <div class="flash-container">
+      {% for category, message in messages %}
+        <div class="flash flash-{{ category }}">
+          <i class="fa {% if category == 'success' %}fa-check-circle{% else %}fa-exclamation-circle{% endif %}"></i>
+          {{ message }}
+          <button class="flash-close" onclick="this.parentElement.remove()">×</button>
+        </div>
+      {% endfor %}
+    </div>
+  {% endif %}
+{% endwith %}
+
+<!-- MAIN -->
+<main class="main-content">
+  {% block content %}{% endblock %}
+</main>
+
+<!-- FOOTER -->
+<footer class="footer">
+  <div class="footer-inner">
+    <div class="footer-brand">🛒 <strong>ShopKart</strong></div>
+    <p class="footer-text">© 2025 ShopKart. All rights reserved.</p>
+    <div class="footer-links">
+      <a href="{{ url_for('index') }}">Shop</a>
+      <a href="{{ url_for('orders') }}">Orders</a>
+      <a href="{{ url_for('profile') }}">Profile</a>
+    </div>
+  </div>
+</footer>
+
+<script src="{{ url_for('static', filename='js/main.js') }}"></script>
+</body>
+</html>

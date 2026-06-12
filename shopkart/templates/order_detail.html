@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block title %}Order #{{ order.order_id }} — ShopKart{% endblock %}
+{% block content %}
+<div class="breadcrumb">
+  <a href="{{ url_for('orders') }}">My Orders</a>
+  <span>/</span>
+  <span>Order #{{ order.order_id }}</span>
+</div>
+
+<div class="order-detail-layout">
+  <div class="order-detail-card">
+    <div class="order-detail-header">
+      <div>
+        <h2>Order #{{ order.order_id }}</h2>
+        <p class="order-date">Placed on {{ order.created_at[:10] }}</p>
+      </div>
+      <span class="order-status status-{{ order.status }}">{{ order.status | capitalize }}</span>
+    </div>
+
+    <div class="order-detail-section">
+      <h4><i class="fa fa-map-marker-alt"></i> Delivery Address</h4>
+      <p>{{ order.address }}</p>
+    </div>
+
+    <div class="order-detail-section">
+      <h4><i class="fa fa-list"></i> Items</h4>
+      <table class="order-table">
+        <thead>
+          <tr><th>Product</th><th>Qty</th><th>Price</th><th>Subtotal</th></tr>
+        </thead>
+        <tbody>
+          {% for item in order.items %}
+          <tr>
+            <td>{{ item.product_name }}</td>
+            <td>{{ item.quantity }}</td>
+            <td>₹{{ "%.0f"|format(item.price) }}</td>
+            <td>₹{{ "%.0f"|format(item.price * item.quantity) }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+        <tfoot>
+          <tr class="order-total-row">
+            <td colspan="3"><strong>Total</strong></td>
+            <td><strong>₹{{ "%.0f"|format(order.total_amount) }}</strong></td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

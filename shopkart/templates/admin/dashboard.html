@@ -1,0 +1,135 @@
+{% extends "base.html" %}
+{% block title %}Admin Dashboard — ShopKart{% endblock %}
+{% block content %}
+
+<div class="admin-header">
+  <h1><i class="fa fa-cog"></i> Admin Dashboard</h1>
+</div>
+
+<!-- STATS -->
+<div class="stat-grid">
+  <div class="stat-card">
+    <div class="stat-icon" style="background:#EEF2FF;color:#4F46E5;">
+      <i class="fa fa-shopping-bag"></i>
+    </div>
+    <div class="stat-info">
+      <p class="stat-label">Total Orders</p>
+      <p class="stat-value">{{ orders|length }}</p>
+    </div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon" style="background:#FEF3C7;color:#D97706;">
+      <i class="fa fa-users"></i>
+    </div>
+    <div class="stat-info">
+      <p class="stat-label">Total Users</p>
+      <p class="stat-value">{{ users|length }}</p>
+    </div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon" style="background:#ECFDF5;color:#059669;">
+      <i class="fa fa-box-open"></i>
+    </div>
+    <div class="stat-info">
+      <p class="stat-label">Products</p>
+      <p class="stat-value">{{ products|length }}</p>
+    </div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon" style="background:#FFF1F2;color:#E11D48;">
+      <i class="fa fa-rupee-sign"></i>
+    </div>
+    <div class="stat-info">
+      <p class="stat-label">Revenue</p>
+      <p class="stat-value">₹{{ "%.0f"|format(orders | sum(attribute='total_amount')) }}</p>
+    </div>
+  </div>
+</div>
+
+<!-- QUICK LINKS -->
+<div class="admin-quick-links">
+  <a href="{{ url_for('admin_products') }}" class="admin-link-card">
+    <i class="fa fa-box-open"></i> Manage Products
+  </a>
+  <a href="{{ url_for('admin_categories') }}" class="admin-link-card">
+    <i class="fa fa-tags"></i> Manage Categories
+  </a>
+  <a href="{{ url_for('index') }}" class="admin-link-card">
+    <i class="fa fa-store"></i> View Shop
+  </a>
+</div>
+
+<!-- ORDERS TABLE -->
+<div class="admin-section">
+  <h2 class="admin-section-title">All Orders</h2>
+  {% if orders %}
+  <div class="table-wrap">
+    <table class="admin-table">
+      <thead>
+        <tr>
+          <th>Order ID</th><th>Customer</th><th>Amount</th><th>Status</th><th>Date</th><th>Action</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for o in orders %}
+        <tr>
+          <td>#{{ o.order_id }}</td>
+          <td>{{ o.user_name }}</td>
+          <td>₹{{ "%.0f"|format(o.total_amount) }}</td>
+          <td><span class="order-status status-{{ o.status }}">{{ o.status | capitalize }}</span></td>
+          <td>{{ o.created_at[:10] }}</td>
+          <td>
+            <form method="post" action="{{ url_for('admin_update_order', order_id=o.order_id) }}" class="inline-form">
+              <select name="status" class="table-select" onchange="this.form.submit()">
+                {% for s in ['pending','confirmed','shipped','delivered','cancelled'] %}
+                  <option value="{{ s }}" {% if o.status == s %}selected{% endif %}>{{ s | capitalize }}</option>
+                {% endfor %}
+              </select>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+    <p class="empty-text">No orders yet.</p>
+  {% endif %}
+</div>
+
+<!-- USERS TABLE -->
+<div class="admin-section">
+  <h2 class="admin-section-title">All Users</h2>
+  {% if users %}
+  <div class="table-wrap">
+    <table class="admin-table">
+      <thead>
+        <tr><th>ID</th><th>Name</th><th>Email</th><th>Role</th><th>Verified</th><th>Action</th></tr>
+      </thead>
+      <tbody>
+        {% for u in users %}
+        <tr>
+          <td>{{ u.user_id }}</td>
+          <td>{{ u.name }}</td>
+          <td>{{ u.email }}</td>
+          <td><span class="profile-role role-{{ u.role }}">{{ u.role | capitalize }}</span></td>
+          <td>
+            {% if u.verified %}<span class="badge-verified">✓ Yes</span>
+            {% else %}<span class="badge-unverified">✗ No</span>{% endif %}
+          </td>
+          <td>
+            {% if u.role != 'admin' %}
+            <a href="{{ url_for('admin_delete_user', user_id=u.user_id) }}"
+               class="btn-danger-sm" onclick="return confirm('Delete user {{ u.name }}?')">
+              <i class="fa fa-trash"></i> Delete
+            </a>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

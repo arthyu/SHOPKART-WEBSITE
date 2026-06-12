@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}My Orders — ShopKart{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1>My Orders</h1>
+  <span class="page-sub">{{ orders|length }} order{{ 's' if orders|length != 1 }}</span>
+</div>
+
+{% if orders %}
+<div class="orders-list">
+  {% for o in orders %}
+  <div class="order-card">
+    <div class="order-card-header">
+      <div>
+        <span class="order-id">#{{ o.order_id }}</span>
+        <span class="order-date">{{ o.created_at[:10] }}</span>
+      </div>
+      <span class="order-status status-{{ o.status }}">{{ o.status | capitalize }}</span>
+    </div>
+    <div class="order-items-preview">
+      {% for item in o.items[:3] %}
+        <span class="order-item-chip">{{ item.product_name }} × {{ item.quantity }}</span>
+      {% endfor %}
+      {% if o.items|length > 3 %}
+        <span class="order-item-chip muted">+{{ o.items|length - 3 }} more</span>
+      {% endif %}
+    </div>
+    <div class="order-card-footer">
+      <span class="order-total">₹{{ "%.0f"|format(o.total_amount) }}</span>
+      <a href="{{ url_for('order_detail', order_id=o.order_id) }}" class="btn btn-ghost btn-sm">View Details</a>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% else %}
+<div class="empty-state">
+  <div class="empty-icon">📦</div>
+  <h3>No orders yet</h3>
+  <p>When you place an order, it will appear here.</p>
+  <a href="{{ url_for('index') }}" class="btn btn-primary">Shop Now</a>
+</div>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,123 @@
+{% extends "base.html" %}
+{% block title %}{{ product.name }} — ShopKart{% endblock %}
+{% block content %}
+
+<div class="breadcrumb">
+  <a href="{{ url_for('index') }}">Home</a>
+  <span>/</span>
+  <a href="{{ url_for('index', category_id=product.get('category_id', '')) }}">{{ product.category_name or 'Products' }}</a>
+  <span>/</span>
+  <span>{{ product.name }}</span>
+</div>
+
+<div class="product-detail-layout">
+
+  <!-- IMAGE -->
+  <div class="detail-image-wrap">
+    {% if product.image %}
+      <img src="{{ product.image }}" alt="{{ product.name }}" class="detail-image" onerror="this.src='https://placehold.co/500x500?text=No+Image'"/>
+    {% else %}
+      <div class="detail-image-placeholder"><i class="fa fa-image"></i></div>
+    {% endif %}
+  </div>
+
+  <!-- INFO -->
+  <div class="detail-info">
+    <span class="detail-category">{{ product.category_name or '—' }}</span>
+    <h1 class="detail-title">{{ product.name }}</h1>
+
+    <div class="detail-rating">
+      {% set rating = product.avg_rating or 0 %}
+      {% for i in range(1, 6) %}
+        <i class="fa fa-star {% if i <= rating %}star-filled{% else %}star-empty{% endif %}"></i>
+      {% endfor %}
+      <span class="rating-count">({{ product.total_reviews }} reviews)</span>
+    </div>
+
+    <div class="detail-price">
+      {% if product.discount_price %}
+        <span class="price-now big">₹{{ "%.0f"|format(product.discount_price) }}</span>
+        <span class="price-old">₹{{ "%.0f"|format(product.price) }}</span>
+        <span class="price-badge">{{ ((1 - product.discount_price/product.price)*100)|int }}% OFF</span>
+      {% else %}
+        <span class="price-now big">₹{{ "%.0f"|format(product.price) }}</span>
+      {% endif %}
+    </div>
+
+    <p class="detail-description">{{ product.description or 'No description available.' }}</p>
+
+    <div class="detail-stock-row">
+      <span class="detail-stock {% if product.stock == 0 %}out{% elif product.stock < 5 %}low{% endif %}">
+        {% if product.stock == 0 %}<i class="fa fa-times-circle"></i> Out of Stock
+        {% elif product.stock < 5 %}<i class="fa fa-exclamation-triangle"></i> Only {{ product.stock }} left!
+        {% else %}<i class="fa fa-check-circle"></i> In Stock ({{ product.stock }} available){% endif %}
+      </span>
+    </div>
+
+    {% if product.stock > 0 %}
+    <form method="post" action="{{ url_for('add_to_cart') }}" class="add-cart-form">
+      <input type="hidden" name="product_id" value="{{ product.product_id }}"/>
+      <div class="qty-row">
+        <label>Qty:</label>
+        <input type="number" name="quantity" value="1" min="1" max="{{ product.stock }}" class="qty-input"/>
+      </div>
+      <button type="submit" class="btn btn-primary btn-lg">
+        <i class="fa fa-cart-plus"></i> Add to Cart
+      </button>
+    </form>
+    {% endif %}
+  </div>
+</div>
+
+<!-- REVIEWS SECTION -->
+<section class="reviews-section">
+  <h2 class="section-heading">Customer Reviews</h2>
+
+  {% if session.get('token') %}
+  <div class="review-form-card">
+    <h3>Write a Review</h3>
+    <form method="post" action="{{ url_for('add_review') }}">
+      <input type="hidden" name="product_id" value="{{ product.product_id }}"/>
+      <div class="star-picker" id="starPicker">
+        {% for i in range(1, 6) %}
+          <i class="fa fa-star star-pick" data-val="{{ i }}"></i>
+        {% endfor %}
+      </div>
+      <input type="hidden" name="rating" id="ratingInput" value="0"/>
+      <textarea name="comment" class="review-textarea" placeholder="Share your experience…" rows="3"></textarea>
+      <button type="submit" class="btn btn-primary">Submit Review</button>
+    </form>
+  </div>
+  {% endif %}
+
+  {% if reviews %}
+    <div class="reviews-list">
+      {% for r in reviews %}
+      <div class="review-card">
+        <div class="review-header">
+          <span class="review-user"><i class="fa fa-user-circle"></i> {{ r.user_name }}</span>
+          <div class="review-stars">
+            {% for i in range(1, 6) %}
+              <i class="fa fa-star {% if i <= r.rating %}star-filled{% else %}star-empty{% endif %}"></i>
+            {% endfor %}
+          </div>
+          <span class="review-date">{{ r.created_at[:10] }}</span>
+        </div>
+        <p class="review-comment">{{ r.comment or '—' }}</p>
+        {% if session.get('user_id') == r.get('user_id') %}
+          <a href="{{ url_for('delete_review', review_id=r.review_id, product_id=product.product_id) }}"
+             class="review-delete" onclick="return confirm('Delete review?')">
+            <i class="fa fa-trash"></i> Delete
+          </a>
+        {% endif %}
+      </div>
+      {% endfor %}
+    </div>
+  {% else %}
+    <div class="empty-state small">
+      <div class="empty-icon">⭐</div>
+      <p>No reviews yet. Be the first!</p>
+    </div>
+  {% endif %}
+</section>
+{% endblock %}

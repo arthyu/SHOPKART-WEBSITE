@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+{% block title %}Manage Products — Admin{% endblock %}
+{% block content %}
+<div class="admin-header">
+  <h1><i class="fa fa-box-open"></i> Manage Products</h1>
+  <a href="{{ url_for('admin_dashboard') }}" class="btn btn-ghost btn-sm">← Dashboard</a>
+</div>
+
+<!-- ADD PRODUCT FORM -->
+<div class="admin-form-card">
+  <h3>Add New Product</h3>
+  <form method="post">
+    <div class="form-row">
+      <div class="form-group">
+        <label>Name *</label>
+        <input type="text" name="name" required class="form-input" placeholder="Product name"/>
+      </div>
+      <div class="form-group">
+        <label>Category</label>
+        <select name="category_id" class="form-input">
+          <option value="">— Select —</option>
+          {% for c in categories %}
+            <option value="{{ c.category_id }}">{{ c.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Description</label>
+      <textarea name="description" class="form-input" rows="2" placeholder="Product description"></textarea>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Price (₹) *</label>
+        <input type="number" step="0.01" name="price" required class="form-input" placeholder="999"/>
+      </div>
+      <div class="form-group">
+        <label>Discount Price (₹)</label>
+        <input type="number" step="0.01" name="discount_price" class="form-input" placeholder="799"/>
+      </div>
+      <div class="form-group">
+        <label>Stock</label>
+        <input type="number" name="stock" class="form-input" value="0"/>
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Image URL</label>
+      <input type="url" name="image" class="form-input" placeholder="https://..."/>
+    </div>
+    <button type="submit" class="btn btn-primary">Add Product</button>
+  </form>
+</div>
+
+<!-- PRODUCTS TABLE -->
+<div class="admin-section">
+  <h2 class="admin-section-title">All Products ({{ products|length }})</h2>
+  {% if products %}
+  <div class="table-wrap">
+    <table class="admin-table">
+      <thead>
+        <tr><th>ID</th><th>Image</th><th>Name</th><th>Category</th><th>Price</th><th>Stock</th><th>Action</th></tr>
+      </thead>
+      <tbody>
+        {% for p in products %}
+        <tr>
+          <td>{{ p.product_id }}</td>
+          <td>
+            {% if p.image %}
+              <img src="{{ p.image }}" class="table-thumb" onerror="this.style.display='none'"/>
+            {% else %}—{% endif %}
+          </td>
+          <td>{{ p.name }}</td>
+          <td>{{ p.category_name or '—' }}</td>
+          <td>
+            ₹{{ "%.0f"|format(p.price) }}
+            {% if p.discount_price %}
+              <br/><span class="price-off">Sale ₹{{ "%.0f"|format(p.discount_price) }}</span>
+            {% endif %}
+          </td>
+          <td>
+            <span class="{% if p.stock == 0 %}text-red{% elif p.stock < 5 %}text-yellow{% else %}text-green{% endif %}">
+              {{ p.stock }}
+            </span>
+          </td>
+          <td>
+            <a href="{{ url_for('admin_delete_product', product_id=p.product_id) }}"
+               class="btn-danger-sm" onclick="return confirm('Delete {{ p.name }}?')">
+              <i class="fa fa-trash"></i> Delete
+            </a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

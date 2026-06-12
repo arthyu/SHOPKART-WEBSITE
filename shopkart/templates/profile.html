@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block title %}Profile — ShopKart{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1>My Profile</h1>
+</div>
+
+<div class="profile-layout">
+  <div class="profile-card">
+    <div class="profile-avatar">
+      <i class="fa fa-user-circle"></i>
+    </div>
+    <h2 class="profile-name">{{ me.name }}</h2>
+    <p class="profile-email">{{ me.email }}</p>
+    <span class="profile-role role-{{ me.role }}">{{ me.role | capitalize }}</span>
+
+    <div class="profile-links">
+      <a href="{{ url_for('orders') }}" class="profile-link-btn">
+        <i class="fa fa-box"></i> My Orders
+      </a>
+      <a href="{{ url_for('cart') }}" class="profile-link-btn">
+        <i class="fa fa-shopping-cart"></i> My Cart
+      </a>
+    </div>
+  </div>
+
+  <div class="profile-form-card">
+    <h3>Edit Profile</h3>
+    <form method="post">
+      <div class="form-row">
+        <div class="form-group">
+          <label>Full Name</label>
+          <input type="text" name="name" value="{{ me.name }}" class="form-input"/>
+        </div>
+        <div class="form-group">
+          <label>Phone</label>
+          <input type="text" name="phone" value="{{ me.phone or '' }}" placeholder="+91 XXXXX XXXXX" class="form-input"/>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Default Address</label>
+        <textarea name="address" class="form-input" rows="2" placeholder="Your delivery address">{{ me.address or '' }}</textarea>
+      </div>
+      <div class="form-group">
+        <label>New Password <span class="label-hint">(leave blank to keep current)</span></label>
+        <div class="input-eye-wrap">
+          <input type="password" name="password" id="pw" placeholder="••••••••" class="form-input"/>
+          <button type="button" class="eye-btn" onclick="togglePw('pw',this)"><i class="fa fa-eye"></i></button>
+        </div>
+      </div>
+      <button type="submit" class="btn btn-primary">Save Changes</button>
+    </form>
+  </div>
+</div>
+{% endblock %}
