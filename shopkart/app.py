@@ -1,6 +1,16 @@
 from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify
 import requests
 
+import razorpay
+
+RAZORPAY_KEY_ID = "rzp_test_SxacRrmAL8Idfr"
+RAZORPAY_KEY_SECRET = "Pa0eoaJr1HlgrXJUV0qHjHio"
+
+client = razorpay.Client(
+    auth=(RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET)
+)
+
+
 app = Flask(__name__)
 app.secret_key = "shopkart-frontend-secret"
 
@@ -194,8 +204,28 @@ def checkout():
             flash(f"Order #{res['order_id']} placed successfully!", "success")
             return redirect(url_for("orders"))
         flash(res.get("detail", "Order failed"), "error")
+    print("FULL CART =", cart)
+    print("Cart Total =", cart["total"])
 
-    return render_template("checkout.html", cart=cart, me=me)
+    print("CART TOTAL =", cart["total"])
+
+    amount = int(cart["total"])
+
+    print("RAZORPAY AMOUNT =", amount)
+
+    print("Creating Razorpay order...")
+    print("Key:", RAZORPAY_KEY_ID)
+
+
+    print("Razorpay Amount:", amount)
+
+    rz_order = client.order.create({
+    "amount": amount,
+    "currency": "INR"
+    })
+    return render_template("checkout.html", cart=cart, me=me,  
+    razorpay_order_id=rz_order["id"],
+    razorpay_key=RAZORPAY_KEY_ID)
 
 @app.route("/orders")
 def orders():
@@ -352,6 +382,18 @@ def admin_delete_user(user_id):
     api_delete(f"/users/{user_id}", token=token)
     flash("User deleted.", "success")
     return redirect(url_for("admin_dashboard"))
+
+
+
+@app.route("/payment-success", methods=["POST"])
+def payment_success():
+    data = request.get_json()
+
+    payment_id = data["razorpay_payment_id"]
+    order_id = data["razorpay_order_id"]
+    signature = data["razorpay_signature"]
+
+    return {"success": True}
 
 if __name__ == "__main__":
     app.run(debug=True, port=5000)
