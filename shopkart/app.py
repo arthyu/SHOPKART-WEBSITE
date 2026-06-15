@@ -1,20 +1,36 @@
 from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify
 import requests
-
 import razorpay
+import os
+from dotenv import load_dotenv
+from pathlib import Path
 
-RAZORPAY_KEY_ID = "rzp_test_SxacRrmAL8Idfr"
-RAZORPAY_KEY_SECRET = "Pa0eoaJr1HlgrXJUV0qHjHio"
+load_dotenv(Path(__file__).resolve().parent / ".env")
 
-client = razorpay.Client(
-    auth=(RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET)
-)
+RAZORPAY_KEY_ID = os.getenv("RAZORPAY_KEY_ID", "rzp_test_default")
+RAZORPAY_KEY_SECRET = os.getenv("RAZORPAY_KEY_SECRET", "secret_default")
 
+try:
+    client = razorpay.Client(auth=(RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET))
+except:
+    client = None
 
 app = Flask(__name__)
 app.secret_key = "shopkart-frontend-secret"
-
 API_BASE = "http://localhost:8000"
+
+@app.context_processor
+def inject_globals():
+    token = session.get("token")
+    cart_count = 0
+    if token:
+        try:
+            r = requests.get(f"{API_BASE}/cart", headers={"Authorization": f"Bearer {token}"})
+            data = r.json()
+            cart_count = data.get("count", 0) if isinstance(data, dict) else 0
+        except:
+            cart_count = 0
+    return {"cart_count": cart_count, "razorpay_key": RAZORPAY_KEY_ID}
 
 def api_get(path, token=None, params=None):
     headers = {"Authorization": f"Bearer {token}"} if token else {}
@@ -48,7 +64,9 @@ def api_delete(path, token=None):
     except:
         return {"detail": "Server unreachable"}, 500
 
-# ── Auth ──────────────────────────────────────────────────────────
+# ═══════════════════════════════════════════
+#  AUTH
+# ═══════════════════════════════════════════
 
 @app.route("/register", methods=["GET", "POST"])
 def register():
@@ -79,10 +97,10 @@ def login():
         data = {"email": request.form["email"], "password": request.form["password"]}
         res, code = api_post("/login", data)
         if code == 200:
-            session["token"] = res["token"]
+            session["token"]     = res["token"]
             session["user_name"] = res["name"]
             session["user_role"] = res["role"]
-            session["user_id"] = res["user_id"]
+            session["user_id"]   = res["user_id"]
             flash(f"Welcome back, {res['name']}!", "success")
             return redirect(url_for("admin_dashboard") if res["role"] == "admin" else url_for("index"))
         flash(res.get("detail", "Login failed"), "error")
@@ -94,54 +112,45 @@ def logout():
     flash("Logged out successfully.", "success")
     return redirect(url_for("login"))
 
-# ── Public Pages ──────────────────────────────────────────────────
+# ═══════════════════════════════════════════
+#  PUBLIC PAGES
+# ═══════════════════════════════════════════
 
 @app.route("/")
 def index():
-    token = session.get("token")
     categories, _ = api_get("/categories")
-    search = request.args.get("search", "")
+    search      = request.args.get("search", "")
     category_id = request.args.get("category_id", "")
-    min_price = request.args.get("min_price", "")
-    max_price = request.args.get("max_price", "")
+    min_price   = request.args.get("min_price", "")
+    max_price   = request.args.get("max_price", "")
 
     params = {}
-    if search:      params["search"] = search
+    if search:      params["search"]      = search
     if category_id: params["category_id"] = category_id
-    if min_price:   params["min_price"] = min_price
-    if max_price:   params["max_price"] = max_price
+    if min_price:   params["min_price"]   = min_price
+    if max_price:   params["max_price"]   = max_price
 
     products, _ = api_get("/products", params=params)
-    if not isinstance(products, list): products = []
+    if not isinstance(products, list):   products   = []
     if not isinstance(categories, list): categories = []
-
-    cart_count = 0
-    if token:
-        cart, _ = api_get("/cart", token=token)
-        cart_count = cart.get("count", 0) if isinstance(cart, dict) else 0
 
     return render_template("index.html", products=products, categories=categories,
                            search=search, category_id=category_id,
-                           min_price=min_price, max_price=max_price, cart_count=cart_count)
+                           min_price=min_price, max_price=max_price)
 
 @app.route("/product/<int:product_id>")
 def product_detail(product_id):
-    token = session.get("token")
     product, code = api_get(f"/products/{product_id}")
     if code != 200:
         flash("Product not found.", "error")
         return redirect(url_for("index"))
     reviews, _ = api_get(f"/reviews/{product_id}")
     if not isinstance(reviews, list): reviews = []
+    return render_template("product_detail.html", product=product, reviews=reviews)
 
-    cart_count = 0
-    if token:
-        cart, _ = api_get("/cart", token=token)
-        cart_count = cart.get("count", 0) if isinstance(cart, dict) else 0
-
-    return render_template("product_detail.html", product=product, reviews=reviews, cart_count=cart_count)
-
-# ── Cart ──────────────────────────────────────────────────────────
+# ═══════════════════════════════════════════
+#  CART
+# ═══════════════════════════════════════════
 
 @app.route("/cart")
 def cart():
@@ -149,9 +158,10 @@ def cart():
     if not token:
         flash("Please login to view your cart.", "error")
         return redirect(url_for("login"))
-    cart, _ = api_get("/cart", token=token)
-    if not isinstance(cart, dict): cart = {"items": [], "total": 0, "count": 0}
-    return render_template("cart.html", cart=cart)
+    cart_data, _ = api_get("/cart", token=token)
+    if not isinstance(cart_data, dict):
+        cart_data = {"items": [], "total": 0, "count": 0}
+    return render_template("cart.html", cart=cart_data)
 
 @app.route("/cart/add", methods=["POST"])
 def add_to_cart():
@@ -170,7 +180,7 @@ def add_to_cart():
 @app.route("/cart/update/<int:cart_id>", methods=["POST"])
 def update_cart(cart_id):
     token = session.get("token")
-    data = {"quantity": int(request.form["quantity"])}
+    data  = {"quantity": int(request.form["quantity"])}
     api_put(f"/cart/{cart_id}", data, token=token)
     return redirect(url_for("cart"))
 
@@ -181,60 +191,51 @@ def remove_from_cart(cart_id):
     flash("Item removed.", "success")
     return redirect(url_for("cart"))
 
-# ── Orders ────────────────────────────────────────────────────────
+# ═══════════════════════════════════════════
+#  CHECKOUT + RAZORPAY
+# ═══════════════════════════════════════════
 
-@app.route("/checkout", methods=["GET", "POST"])
+@app.route("/checkout", methods=["GET"])
 def checkout():
     token = session.get("token")
     if not token:
         flash("Please login to checkout.", "error")
         return redirect(url_for("login"))
-
-    cart, _ = api_get("/cart", token=token)
-    if not isinstance(cart, dict) or not cart.get("items"):
+    
+    cart_data, _ = api_get("/cart", token=token)
+    if not isinstance(cart_data, dict) or not cart_data.get("items"):
         flash("Your cart is empty.", "error")
         return redirect(url_for("cart"))
-
+    
     me, _ = api_get("/me", token=token)
-
-    if request.method == "POST":
-        data = {"address": request.form["address"]}
-        res, code = api_post("/orders", data, token=token)
-        if code == 200:
-            flash(f"Order #{res['order_id']} placed successfully!", "success")
-            return redirect(url_for("orders"))
-        flash(res.get("detail", "Order failed"), "error")
-    print("FULL CART =", cart)
-    print("Cart Total =", cart["total"])
-
-    print("CART TOTAL =", cart["total"])
-
-    amount = int(cart["total"])
-
-    print("RAZORPAY AMOUNT =", amount)
-
-    print("Creating Razorpay order...")
-    print("Key:", RAZORPAY_KEY_ID)
+    if not isinstance(me, dict): me = {}
+    
+    return render_template("checkout.html", cart=cart_data, me=me)
 
 
-    print("Razorpay Amount:", amount)
 
-    rz_order = client.order.create({
-    "amount": amount,
-    "currency": "INR"
-    })
-    return render_template("checkout.html", cart=cart, me=me,  
-    razorpay_order_id=rz_order["id"],
-    razorpay_key=RAZORPAY_KEY_ID)
+# ═══════════════════════════════════════════
+#  ORDERS + HISTORY
+# ═══════════════════════════════════════════
 
 @app.route("/orders")
 def orders():
     token = session.get("token")
     if not token:
         return redirect(url_for("login"))
-    orders, _ = api_get("/orders", token=token)
-    if not isinstance(orders, list): orders = []
-    return render_template("orders.html", orders=orders)
+    orders_data, _ = api_get("/orders", token=token)
+    if not isinstance(orders_data, list): orders_data = []
+    return render_template("orders.html", orders=orders_data)
+
+@app.route("/history")
+def order_history():
+    token = session.get("token")
+    if not token:
+        flash("Please login to view your history.", "error")
+        return redirect(url_for("login"))
+    orders_data, _ = api_get("/orders", token=token)
+    if not isinstance(orders_data, list): orders_data = []
+    return render_template("history.html", orders=orders_data)
 
 @app.route("/orders/<int:order_id>")
 def order_detail(order_id):
@@ -247,7 +248,9 @@ def order_detail(order_id):
         return redirect(url_for("orders"))
     return render_template("order_detail.html", order=order)
 
-# ── Profile ───────────────────────────────────────────────────────
+# ═══════════════════════════════════════════
+#  PROFILE
+# ═══════════════════════════════════════════
 
 @app.route("/profile", methods=["GET", "POST"])
 def profile():
@@ -255,11 +258,12 @@ def profile():
     if not token:
         return redirect(url_for("login"))
     me, _ = api_get("/me", token=token)
+    if not isinstance(me, dict): me = {}
     if request.method == "POST":
         data = {}
-        if request.form.get("name"):     data["name"] = request.form["name"]
-        if request.form.get("phone"):    data["phone"] = request.form["phone"]
-        if request.form.get("address"):  data["address"] = request.form["address"]
+        if request.form.get("name"):     data["name"]     = request.form["name"]
+        if request.form.get("phone"):    data["phone"]    = request.form["phone"]
+        if request.form.get("address"):  data["address"]  = request.form["address"]
         if request.form.get("password"): data["password"] = request.form["password"]
         res, code = api_put("/me", data, token=token)
         if code == 200:
@@ -270,7 +274,9 @@ def profile():
         return redirect(url_for("profile"))
     return render_template("profile.html", me=me)
 
-# ── Reviews ───────────────────────────────────────────────────────
+# ═══════════════════════════════════════════
+#  REVIEWS
+# ═══════════════════════════════════════════
 
 @app.route("/reviews/add", methods=["POST"])
 def add_review():
@@ -297,7 +303,9 @@ def delete_review(review_id, product_id):
     flash("Review deleted.", "success")
     return redirect(url_for("product_detail", product_id=product_id))
 
-# ── Admin ─────────────────────────────────────────────────────────
+# ═══════════════════════════════════════════
+#  ADMIN
+# ═══════════════════════════════════════════
 
 @app.route("/admin")
 def admin_dashboard():
@@ -305,13 +313,13 @@ def admin_dashboard():
     if session.get("user_role") != "admin":
         flash("Admins only.", "error")
         return redirect(url_for("index"))
-    orders, _ = api_get("/admin/orders", token=token)
-    users, _  = api_get("/users", token=token)
-    products, _ = api_get("/products")
-    if not isinstance(orders, list): orders = []
-    if not isinstance(users, list): users = []
-    if not isinstance(products, list): products = []
-    return render_template("admin/dashboard.html", orders=orders, users=users, products=products)
+    orders_data, _ = api_get("/admin/orders", token=token)
+    users, _       = api_get("/users", token=token)
+    products, _    = api_get("/products")
+    if not isinstance(orders_data, list): orders_data = []
+    if not isinstance(users, list):       users       = []
+    if not isinstance(products, list):    products    = []
+    return render_template("admin/dashboard.html", orders=orders_data, users=users, products=products)
 
 @app.route("/admin/products", methods=["GET", "POST"])
 def admin_products():
@@ -383,17 +391,79 @@ def admin_delete_user(user_id):
     flash("User deleted.", "success")
     return redirect(url_for("admin_dashboard"))
 
-
-
-@app.route("/payment-success", methods=["POST"])
-def payment_success():
-    data = request.get_json()
-
-    payment_id = data["razorpay_payment_id"]
-    order_id = data["razorpay_order_id"]
-    signature = data["razorpay_signature"]
-
-    return {"success": True}
-
 if __name__ == "__main__":
     app.run(debug=True, port=5000)
+
+# ═══════════════════════════════════════════
+#  RAZORPAY ROUTES (Additional)
+# ═══════════════════════════════════════════
+
+@app.route("/create-razorpay-order", methods=["POST"])
+def create_razorpay_order():
+    try:
+        data = request.get_json()
+        amount = 100000 # For demo, fixed amount. In real case, calculate from cart.
+        
+        if not amount or amount <= 0:
+            return jsonify({"success": False, "message": "Invalid amount"}), 400
+        
+        if not client:
+            return jsonify({"success": False, "message": "Payment gateway not configured"}), 500
+        
+        rz_order = client.order.create({
+            "amount": amount,
+            "currency": "INR",
+            "payment_capture": 1
+        })
+        
+        return jsonify({"success": True, "order_id": rz_order["id"]}), 200
+    except Exception as e:
+        print(f"Razorpay error: {str(e)}")
+        return jsonify({"success": False, "message": str(e)}), 500
+
+@app.route("/verify-payment", methods=["POST"])
+def verify_payment():
+    try:
+        token = session.get("token")
+        if not token:
+            return jsonify({"success": False, "message": "Not logged in"}), 401
+        
+        data = request.get_json()
+        payment_id = data.get("razorpay_payment_id")
+        order_id   = data.get("razorpay_order_id")
+        signature  = data.get("razorpay_signature")
+        address    = data.get("address", "")
+        
+        if not all([payment_id, order_id, signature, address]):
+            return jsonify({"success": False, "message": "Missing payment data"}), 400
+        
+        # Verify signature with Razorpay
+        try:
+            if client:
+                client.utility.verify_payment_signature({
+                    'razorpay_order_id': order_id,
+                    'razorpay_payment_id': payment_id,
+                    'razorpay_signature': signature
+                })
+        except Exception as e:
+            print(f"Signature verification failed: {str(e)}")
+            return jsonify({"success": False, "message": "Payment verification failed"}), 400
+        
+        # Place order on FastAPI backend
+        order_res, code = api_post("/orders", {"address": address}, token=token)
+        
+        if code == 200:
+            return jsonify({
+                "success": True,
+                "order_id": order_res.get("order_id"),
+                "message": "Order placed successfully"
+            }), 200
+        else:
+            return jsonify({
+                "success": False,
+                "message": order_res.get("detail", "Failed to place order")
+            }), 400
+            
+    except Exception as e:
+        print(f"Payment verification error: {str(e)}")
+        return jsonify({"success": False, "message": str(e)}), 500

@@ -544,11 +544,11 @@ input, textarea, select { font-family: inherit; }
 
 /* Limit product title to 2 lines so all cards stay same height */
 .card-title {
-  display: -webkit-box !important;
-  -webkit-line-clamp: 2 !important;
-  -webkit-box-orient: vertical !important;
-  overflow: hidden !important;
-  min-height: 2.5em;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  line-clamp: 2;
+  -webkit-line-clamp: 2;
 }
 
 /* Push price, stock, button to bottom so they always align */
