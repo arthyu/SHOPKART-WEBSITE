@@ -264,6 +264,7 @@ input, textarea, select { font-family: inherit; }
 }
 
 .card-body { padding: 14px; display: flex; flex-direction: column; gap: 6px; flex: 1; }
+.card-spacer { flex: 1; }
 .card-category { font-size: .72rem; color: var(--slate); text-transform: uppercase; letter-spacing: .06em; font-weight: 600; }
 .card-title { font-weight: 600; font-size: .92rem; color: var(--text); line-height: 1.35; }
 .card-title:hover { color: var(--brand); }
@@ -538,3 +539,39 @@ input, textarea, select { font-family: inherit; }
   .nav-search { display: none; }
   .shop-layout { padding: 16px; }
 }
+
+/* ── FIXES: Card alignment + search bar ── */
+
+/* Limit product title to 2 lines so all cards stay same height */
+.card-title {
+  display: -webkit-box !important;
+  -webkit-line-clamp: 2 !important;
+  -webkit-box-orient: vertical !important;
+  overflow: hidden !important;
+  min-height: 2.5em;
+}
+
+/* Push price, stock, button to bottom so they always align */
+.card-body {
+  justify-content: space-between;
+}
+.card-price { margin-top: 4px; }
+.card-stock { margin-bottom: 4px; }
+.card-body form { margin-top: auto; padding-top: 8px; }
+
+/* Bigger search bar */
+.nav-search {
+  flex: 1 !important;
+  max-width: 680px !important;
+}
+.nav-search input {
+  font-size: 1rem !important;
+  padding: 0 18px !important;
+  height: 42px !important;
+}
+.nav-search button {
+  padding: 0 20px !important;
+  font-size: 1rem !important;
+  height: 42px !important;
+}
+.navbar { height: 68px !important; }
