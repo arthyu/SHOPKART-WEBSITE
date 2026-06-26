@@ -391,31 +391,28 @@ def admin_delete_user(user_id):
     flash("User deleted.", "success")
     return redirect(url_for("admin_dashboard"))
 
-if __name__ == "__main__":
-    app.run(debug=True, port=5000)
-
 # ═══════════════════════════════════════════
-#  RAZORPAY ROUTES (Additional)
+#  RAZORPAY ROUTES
 # ═══════════════════════════════════════════
 
 @app.route("/create-razorpay-order", methods=["POST"])
 def create_razorpay_order():
     try:
         data = request.get_json()
-        amount = 100000 # For demo, fixed amount. In real case, calculate from cart.
-        
+        amount = data.get("amount") if data else None
+
         if not amount or amount <= 0:
             return jsonify({"success": False, "message": "Invalid amount"}), 400
-        
+
         if not client:
             return jsonify({"success": False, "message": "Payment gateway not configured"}), 500
-        
+
         rz_order = client.order.create({
-            "amount": amount,
+            "amount": int(amount),
             "currency": "INR",
             "payment_capture": 1
         })
-        
+
         return jsonify({"success": True, "order_id": rz_order["id"]}), 200
     except Exception as e:
         print(f"Razorpay error: {str(e)}")
@@ -427,17 +424,16 @@ def verify_payment():
         token = session.get("token")
         if not token:
             return jsonify({"success": False, "message": "Not logged in"}), 401
-        
+
         data = request.get_json()
         payment_id = data.get("razorpay_payment_id")
         order_id   = data.get("razorpay_order_id")
         signature  = data.get("razorpay_signature")
         address    = data.get("address", "")
-        
+
         if not all([payment_id, order_id, signature, address]):
             return jsonify({"success": False, "message": "Missing payment data"}), 400
-        
-        # Verify signature with Razorpay
+
         try:
             if client:
                 client.utility.verify_payment_signature({
@@ -448,10 +444,9 @@ def verify_payment():
         except Exception as e:
             print(f"Signature verification failed: {str(e)}")
             return jsonify({"success": False, "message": "Payment verification failed"}), 400
-        
-        # Place order on FastAPI backend
+
         order_res, code = api_post("/orders", {"address": address}, token=token)
-        
+
         if code == 200:
             return jsonify({
                 "success": True,
@@ -463,7 +458,10 @@ def verify_payment():
                 "success": False,
                 "message": order_res.get("detail", "Failed to place order")
             }), 400
-            
+
     except Exception as e:
         print(f"Payment verification error: {str(e)}")
         return jsonify({"success": False, "message": str(e)}), 500
+
+if __name__ == "__main__":
+    app.run(debug=True, port=5000)

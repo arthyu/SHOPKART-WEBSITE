@@ -2,93 +2,120 @@
 {% block title %}Checkout — ShopKart{% endblock %}
 {% block content %}
 
-<button id="rzp-button" class="btn btn-primary btn-full btn-lg">
-    Pay ₹{{ "%.0f"|format(cart['total']) }}
-</button>
-
 <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
-<script>
-var options = {
-    "key": "{{ razorpay_key }}",
-    "amount": "{{ cart['total'] * 100 }}",
-    "currency": "INR",
-    "name": "ShopKart",
-    "description": "Order Payment",
-    "order_id": "{{ razorpay_order_id }}",
-
-    "handler": function (response) {
-
-        fetch("/payment-success", {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json"
-            },
-            body: JSON.stringify(response)
-        }).then(() => {
-            window.location = "/orders";
-        });
-    }
-};
-
-document.getElementById('rzp-button').onclick = function(e) {
-    var rzp = new Razorpay(options);
-    rzp.open();
-    e.preventDefault();
-}
-</script>
-
-
 
 <div class="page-header">
   <h1>Checkout</h1>
-  
 </div>
 
 <div class="checkout-layout">
   <div class="checkout-form-wrap">
-    <div class="checkout-card">
+
+    <!-- Step 1: Address -->
+    <div class="checkout-card" id="address-step">
       <h3><i class="fa fa-map-marker-alt"></i> Delivery Address</h3>
-      <form method="post">
-        <div class="form-group">
-          <label>Full Address</label>
-          <textarea name="address" class="form-input" rows="3" required
-                    placeholder="House no, Street, City, State, Pincode">{{ me.address or '' }}</textarea>
-        </div>
-        <button type="submit" class="btn btn-primary btn-full btn-lg">
-          <i class="fa fa-check-circle"></i> Place Order
-        </button>
-      </form>
+      <div class="form-group">
+        <label>Full Address</label>
+        <textarea id="address-input" class="form-input" rows="3" required
+                  placeholder="House no, Street, City, State, Pincode">{{ me.address or '' }}</textarea>
+      </div>
+      <button type="button" class="btn btn-primary btn-full btn-lg" onclick="placeOrder()">
+        <i class="fa fa-check-circle"></i> Place Order
+      </button>
     </div>
+
+    <!-- Step 2: Pay (hidden until Place Order clicked) -->
+    <div class="checkout-card" id="pay-step" style="display:none;">
+      <h3><i class="fa fa-map-marker-alt"></i> Delivering To</h3>
+      <p id="address-display" class="address-preview"></p>
+      <button type="button" class="btn btn-link btn-sm" onclick="editAddress()">
+        <i class="fa fa-edit"></i> Change Address
+      </button>
+    </div>
+
   </div>
 
   <div class="checkout-summary">
     <div class="checkout-card">
       <h3><i class="fa fa-shopping-bag"></i> Order Items</h3>
 
-{% for item in cart['items'] %}
-<div class="checkout-item">
-    <span class="co-name">
-        {{ item['product_name'] }} × {{ item['quantity'] }}
-    </span>
-    <span class="co-price">
-        ₹{{ "%.0f"|format(item['subtotal']) }}
-    </span>
-</div>
-{% endfor %}
+      {% for item in cart['items'] %}
+      <div class="checkout-item">
+        <span class="co-name">{{ item['product_name'] }} × {{ item['quantity'] }}</span>
+        <span class="co-price">₹{{ "%.0f"|format(item['subtotal']) }}</span>
+      </div>
+      {% endfor %}
 
-<div class="summary-divider"></div>
+      <div class="summary-divider"></div>
 
-<div class="checkout-total">
-    <span>Total</span>
-    <span class="total-amt">
-        ₹{{ "%.0f"|format(cart['total']) }}
-    </span>
-</div>
+      <div class="checkout-total">
+        <span>Total</span>
+        <span class="total-amt">₹{{ "%.0f"|format(cart['total']) }}</span>
+      </div>
+
+      <!-- Pay button at bottom, hidden until Place Order clicked -->
+      <div id="pay-btn-wrap" style="display:none; margin-top: 1.2rem;">
+        <button id="rzp-button" class="btn btn-primary btn-full btn-lg" onclick="startPayment()">
+          <i class="fa fa-lock"></i> Pay ₹{{ "%.0f"|format(cart['total']) }}
+        </button>
+      </div>
     </div>
   </div>
 </div>
 
+<script>
+var savedAddress = "";
+var totalAmount = {{ cart['total'] * 100 }};
+
+function placeOrder() {
+  var addr = document.getElementById("address-input").value.trim();
+  if (!addr) {
+    alert("Please enter your delivery address.");
+    return;
+  }
+  savedAddress = addr;
+  document.getElementById("address-step").style.display = "none";
+  document.getElementById("pay-step").style.display = "block";
+  document.getElementById("address-display").textContent = savedAddress;
+  document.getElementById("pay-btn-wrap").style.display = "block";
+}
+
+function editAddress() {
+  document.getElementById("pay-step").style.display = "none";
+  document.getElementById("pay-btn-wrap").style.display = "none";
+  document.getElementById("address-step").style.display = "block";
+}
+
+function startPayment() {
+  var options = {
+    "key": "{{ razorpay_key | default('') }}",
+    "amount": totalAmount,
+    "currency": "INR",
+    "name": "ShopKart",
+    "description": "Order Payment",
+    "handler": function(response) {
+      response.address = savedAddress;
+      fetch("/verify-payment", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(response)
+      })
+      .then(function(res) { return res.json(); })
+      .then(function(data) {
+        if (data.success) {
+          window.location = "/orders";
+        } else {
+          alert("Payment failed: " + (data.message || "please try again"));
+        }
+      })
+      .catch(function() {
+        alert("Network error after payment. Please contact support.");
+      });
+    }
+  };
+  var rzp = new Razorpay(options);
+  rzp.open();
+}
+</script>
+
 {% endblock %}
-
-
-
